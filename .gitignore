@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# Datos: viven fuera del repo (~/Proyecto-DataMining-data), pero por si acaso
+data/
+raw/
+derivados/
+*.parquet
+*.tar.gz
+*.jsonl.gz
+
+# Material del curso (propiedad del docente, solo referencia local)
+Clases/
+Proyecto Integrador 1 - 2026 - 2.docx
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*
+.vscode/
