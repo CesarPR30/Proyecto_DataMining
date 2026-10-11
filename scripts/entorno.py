@@ -18,14 +18,17 @@ import sys
 from pathlib import Path
 
 HERRAMIENTAS = Path.home() / "tools"
+RAIZ = Path(__file__).resolve().parent.parent
 
-# Raiz de los datos crudos (fuera de OneDrive para no sincronizar decenas de GB)
+# Raiz de los datos crudos: carpeta data/ del proyecto (ignorada por git).
+# Si el proyecto vive en una carpeta sincronizada (OneDrive), conviene
+# redirigirla fuera con OCDS_DATA / OCDS_DERIVED.
 DATOS = Path(os.environ.get(
-    "OCDS_DATA", str(Path.home() / "Proyecto-DataMining-data" / "raw" / "ocds")))
+    "OCDS_DATA", str(RAIZ / "data" / "raw" / "ocds")))
 
 # Raiz de los artefactos derivados (Parquet, agregados para la web)
 DERIVADOS = Path(os.environ.get(
-    "OCDS_DERIVED", str(Path.home() / "Proyecto-DataMining-data" / "derivados")))
+    "OCDS_DERIVED", str(RAIZ / "data" / "derivados")))
 
 
 def _buscar(patron, marcador):
