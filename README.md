@@ -88,6 +88,8 @@ python -m http.server 8000 --directory web
 # y abrir http://localhost:8000
 ```
 
+**Publicación en GitHub Pages.** El workflow `.github/workflows/pages.yml` publica la carpeta `web/` cada vez que se actualiza `main`. Para activarlo, el dueño del repositorio debe: (1) tener el repo público o una cuenta GitHub Pro (gratis con el Student Developer Pack), y (2) ir a *Settings → Pages → Source: GitHub Actions*. El reporte queda en `https://cesarpr30.github.io/Proyecto_DataMining/`.
+
 Arquitectura «calcular una vez, explorar muchas»: lo pesado corre en Spark una sola vez y se exporta como agregados ligeros; la página solo lee esos artefactos y recalcula en vivo las fórmulas analíticas de los compromisos (curva S de LSH, error de MinHash, falsos positivos de Bloom).
 
 ## Privacidad
