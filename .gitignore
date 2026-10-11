@@ -4,8 +4,10 @@ __pycache__/
 .venv/
 .ipynb_checkpoints/
 
-# Datos: viven fuera del repo (~/Proyecto-DataMining-data), pero por si acaso
-data/
+# Datos: viven en data/ en la raiz del proyecto y no se versionan.
+# (anclado con / para no ignorar web/data/, que trae los artefactos ligeros
+# y anonimizados que necesita el reporte web)
+/data/
 raw/
 derivados/
 *.parquet

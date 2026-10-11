@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compras públicas del Perú</title>
+<meta name="description" content="Reporte técnico interactivo: minería de datos masivos y flujos sobre las contrataciones públicas del Estado peruano (OCDS, OECE/SEACE, 2003-2026).">
+<link rel="stylesheet" href="assets/estilo.css">
+</head>
+<body>
+<header class="barra">
+  <div class="barra-in">
+    <span class="marca">OCDS · Perú</span>
+    <nav>
+      <a href="#preguntas">Preguntas</a>
+      <a href="#kdd">Datos y KDD</a>
+      <a href="#parte1">I · EDA</a>
+      <a href="#parte2">II · Similitud</a>
+      <a href="#parte3">III · ANN</a>
+      <a href="#parte4">IV · Flujos</a>
+      <a href="#parte5">V · Reglas</a>
+      <a href="#parte6">VI · Discusión</a>
+      <a href="#etica">Ética</a>
+      <a href="#fuentes">Fuentes</a>
+    </nav>
+    <button class="tema" id="btn-tema" type="button" aria-label="Cambiar tema claro u oscuro">Tema</button>
+  </div>
+</header>
+
+<main>
+<section class="portada" id="inicio">
+  <div class="sup">Proyecto Integrador 1 · Minería de Datos Masivos y Flujos de Datos · Prof. Heider Sánchez · 2026-2</div>
+  <h1>Quién compite, quién se repite y cómo vigilarlo: minería de 2,76 millones de contrataciones públicas del Perú</h1>
+  <p class="lead">Aplicamos las seis familias de técnicas del curso —Spark, similitud con MinHash y LSH, búsqueda aproximada de vecinos, sketches de flujo y reglas de asociación— al registro completo del SEACE publicado en estándar OCDS por el OECE. Cada hallazgo se puede explorar: los controles marcados <span class="vivo">en vivo</span> recalculan el compromiso entre precisión, memoria y tiempo directamente en el navegador.</p>
+  <div class="tiles">
+    <div class="tile"><div class="lab">Procesos de contratación</div><div class="val">2,76 M</div><div class="sub">2003 – oct. 2026</div></div>
+    <div class="tile"><div class="lab">Filas en 12 tablas</div><div class="val">46,5 M</div><div class="sub">17 GB CSV → 2,6 GB Parquet</div></div>
+    <div class="tile"><div class="lab">Ventana analítica</div><div class="val">2015 – 2026</div><div class="sub">885 mil procesos, 8 M postulaciones</div></div>
+    <div class="tile"><div class="lab">Monto convocado 2015-2026</div><div class="val">S/ 996 mil M</div><div class="sub">831 mil procesos con monto</div></div>
+  </div>
+  <p class="nota">Arquitectura «calcular una vez, explorar muchas»: todo lo pesado corrió offline en Apache Spark 4.2 (local, 12 núcleos) y se exportó como artefactos ligeros; esta página no invoca Spark. Fuente: OECE, Contrataciones Abiertas (OCDS), vía OCP Data Registry, colección del 04/10/2026, licencia CC BY 4.0.</p>
+</section>
+
+<!-- ================================================================ PREGUNTAS -->
+<section id="preguntas">
+  <h2><span class="parte">Punto de partida</span>Tres preguntas de interés</h2>
+  <p class="intro">Las formulamos después de perfilar el dataset, para que fueran respondibles con los campos que realmente existen. Ninguna es descriptiva: cada una apunta a una decisión de control o de política de compras.</p>
+
+  <div class="hallazgo">
+    <h3>P1 · ¿Hay grupos de proveedores que concurren sistemáticamente a los mismos procesos, y dónde se concentran?</h3>
+    <p><b>Por qué importa.</b> La competencia efectiva es el mecanismo por el que el Estado obtiene mejores precios. Si un grupo de empresas se presenta siempre en bloque, la competencia puede ser solo aparente. <b>Técnicas:</b> Jaccard/MinHash/LSH sobre «proveedor → procesos» (Parte II) y FP-Growth sobre «proceso → postores» (Parte V): dos representaciones independientes que miran el fenómeno a escalas distintas.</p>
+    <p><b>Respuesta corta.</b> Sí, y con dos escalas. LSH encontró 2 275 pares de proveedores con Jaccard ≥ 0,5 entre 68 381 con historial, incluido un grupo de cuatro que nunca se presenta por separado (37 procesos, Jaccard 1,000). FP-Growth encontró 183 630 grupos maximales, de hasta 14 RUC: los más grandes son el círculo de proveedores habituales de una sola entidad, y más de la mitad de las 300 mayores (157) son grupos de 9 a 11 proveedores de bienes que concurren en 15-31 sedes del Poder Judicial y ganan, en mediana, el 83 % de los procesos frente al 36 % que les tocaría al azar. Advertencia: las parejas que coinciden en miles de procesos y nunca ganan muestran que la tabla de postores incluye registros pasivos (<a href="#parte5">Parte V</a>).</p>
+  </div>
+  <div class="hallazgo">
+    <h3>P2 · ¿Qué tan reutilizadas son las especificaciones, y los procesos casi idénticos terminan con los mismos postores y ganadores?</h3>
+    <p><b>Por qué importa.</b> Reutilizar especificaciones puede ser estandarización sana o términos de referencia copiados que reproducen un sesgo. Distinguirlo exige cruzar la similitud del texto con quién se presenta y quién gana. <b>Técnicas:</b> shingling + MinHash + LSH a escala (Parte II) y TF-IDF + vecinos más cercanos (Parte III).</p>
+    <p><b>Respuesta corta.</b> 589 224 pares de procesos tienen descripciones casi idénticas (Jaccard ≥ 0,8) y el 98 % pertenece a la misma entidad: son reconvocatorias, no copias entre entidades. Los procesos con texto casi idéntico comparten ganador en el 15 % de los casos, frente al 0,02 % de dos procesos al azar del mismo tipo; entre entidades <em>distintas</em> la cifra aún llega al 10 % (<a href="#parte3">Parte III</a>).</p>
+  </div>
+  <div class="hallazgo">
+    <h3>P3 · ¿Se puede vigilar el flujo de contrataciones en una sola pasada y con memoria acotada sin perder las alertas del conteo exacto?</h3>
+    <p><b>Por qué importa.</b> Un órgano de control no puede reprocesar el histórico cada día. La pregunta práctica es cuánta precisión se sacrifica al monitorear con estructuras de resumen y si ese sacrificio cambia alguna alerta. <b>Técnicas:</b> Bloom Filter, Count-Min Sketch y DGIM sobre el flujo ordenado por fecha (Parte IV), contrastados con el valor exacto calculado en Spark.</p>
+    <p><b>Respuesta corta.</b> Sí, con matices: un Bloom de 0,67 MB (100 veces menos que el conjunto exacto) marca mal a 4 de cada 1 000 proveedores nuevos; un Count-Min de 512 KB recupera el 100 % de los 20 proveedores más activos pero es inútil para la cola larga; DGIM cuenta los procesos de más de S/ 1 millón del último mes con 4-11 % de error usando el 2-8 % de la memoria (<a href="#parte4">Parte IV</a>).</p>
+  </div>
+</section>
+
+<!-- ================================================================ KDD -->
+<section id="kdd">
+  <h2><span class="parte">Metodología</span>Datos y proceso KDD</h2>
+  <p class="intro">El dataset elegido es el registro de contrataciones del SEACE publicado por el OECE (ex OSCE) en el Open Contracting Data Standard (OCDS 1.1). Se descargó completo y de forma automatizada desde el OCP Data Registry: 25 particiones anuales en CSV, 2,29 GB comprimidos.</p>
+
+  <h4>1. Selección</h4>
+  <p>Se evaluaron las seis fuentes sugeridas (PNDA, OCDS-OECE, órdenes de compra del OECE, INEI, MEF y Perú Compras) contra los cuatro requisitos del enunciado. OCDS es la única que cumple los cuatro de forma natural: volumen (17 GB en CSV, tablas de hasta 12,8 M de filas), conjuntos comparables (texto libre por proceso y RUC por postor), una marca de tiempo al minuto sin nulos y una canasta densa («proceso → postores», 9,4 ítems de media). De las 21 tablas por partición se usan 12; se omiten adjuntos, fuentes y tipos de cambio.</p>
+
+  <h4>2. Preprocesamiento: limpieza</h4>
+  <ul class="lista">
+    <li><b>Esquema cambiante.</b> <code>main.csv</code> tiene cinco juegos de columnas distintos entre 2003 y 2026; un lector con <em>glob</em> desalinea columnas en silencio. Se lee partición por partición y se une con <code>unionByName(allowMissingColumns=True)</code>.</li>
+    <li><b>Duplicados.</b> Ningún OCID se repite entre particiones (verificado); se deja una deduplicación por OCID con la versión más reciente como salvaguarda. Las <em>reconvocatorias</em> (mismo texto, misma entidad, nuevo OCID) no son duplicados técnicos pero sí inflan conteos: LSH las detectó y la Parte V las colapsa (35 100 canastas).</li>
+    <li><b>Nulos.</b> 13 procesos sin fecha válida (aislados en la partición <code>anio=0</code>); el monto en soles (<code>tender_value_amount_PEN</code>) no existe antes de 2015; el número de postores declarado falta en 7-9 % y se recalcula desde <code>tender_tenderers</code>.</li>
+    <li><b>Inconsistencias.</b> 52 603 procesos con monto ≤ 0 (6,0 % de 2015-2026) se excluyen del análisis de montos. El año del archivo no es el año de publicación del proceso. Antes de 2015 el SEACE no registraba a todos los postores (ver <a href="#h-quiebre">quiebre</a>).</li>
+  </ul>
+
+  <h4>3. Transformación</h4>
+  <p>Los CSV se convierten a Parquet (Snappy) particionado por <b>año de publicación</b> derivado de <code>tender_datePublished</code>, que se propaga a las tablas hijas por <code>main_ocid</code>. Las nueve tablas comparables coinciden fila a fila con lo que declara el publicador (2 760 591 procesos, 10 077 133 postulaciones, 12 837 750 partes). Sobre el Parquet se materializan una vez las representaciones que reutilizan las Partes II, III y V: shingles de 5 caracteres por proceso, conjunto de procesos por RUC, canasta de postores por proceso y canasta de clases CUBSO por entidad-año.</p>
+  <div class="tabla-wrap"><table>
+    <thead><tr><th>Tabla / representación</th><th>Grano</th><th class="n">Filas</th><th>Columnas clave (tipo)</th></tr></thead>
+    <tbody>
+      <tr><td>main</td><td>proceso</td><td class="n">2 760 591</td><td>ocid, fecha (timestamp), anio/mes (int), buyer_name, monto_pen (double), categoría, método, título, descripción</td></tr>
+      <tr><td>tender_tenderers</td><td>proceso × postor</td><td class="n">10 077 133</td><td>main_ocid, id (RUC), name, anio</td></tr>
+      <tr><td>tender_items</td><td>ítem</td><td class="n">5 145 770</td><td>main_ocid, classification_id (CUBSO 16 díg.), descripción, cantidad</td></tr>
+      <tr><td>awards_suppliers</td><td>adjudicación × proveedor</td><td class="n">2 006 734</td><td>main_ocid, id (RUC ganador)</td></tr>
+      <tr><td>repr_proceso</td><td>proceso</td><td class="n">2 760 591</td><td>texto normalizado, tokens, shingles (array&lt;string&gt;)</td></tr>
+      <tr><td>repr_proveedor</td><td>RUC</td><td class="n">≈ 700 mil</td><td>procesos (array&lt;string&gt;), n_procesos</td></tr>
+      <tr><td>canasta_proceso_postores</td><td>proceso</td><td class="n">2 035 716</td><td>postores (array&lt;string&gt;), n_postores</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>4 y 5. Minería e interpretación</h4>
+  <p>Partes I a V de esta página. Cada módulo indica qué corrió en Spark (distribuido) y qué en local, y por qué. Todas las cifras salen de los scripts del repositorio; los artefactos se exportan con <code>scripts/15_exportar_web.py</code>.</p>
+</section>
+
+<!-- ================================================================ PARTE I -->
+<section id="parte1">
+  <h2><span class="parte">Parte I</span>EDA y procesamiento distribuido en Spark</h2>
+  <p class="intro">Todo el EDA corre con DataFrames y Spark SQL sobre el Parquet; los agregados se exportan a CSV y la página solo los dibuja.</p>
+
+  <div class="hallazgo" id="h-temporal">
+    <p class="pregunta">¿Cómo llega el flujo de contrataciones en el tiempo?</p>
+    <div class="pipeline"><span class="spark">Spark: groupBy(año, mes) sobre 2,76 M procesos</span><i>→</i><span>CSV 275 filas</span><i>→</i><span class="local">navegador</span></div>
+    <div class="controles"><div class="ctrl"><label for="ctl-temporal">Medida</label>
+      <select id="ctl-temporal"><option value="procesos">Procesos publicados (2003-2026)</option><option value="monto_pen">Monto convocado en soles (2015-2026)</option></select></div></div>
+    <div class="lienzo"><canvas id="ch-temporal" role="img" aria-label="Serie mensual de procesos publicados"></canvas></div>
+    <div class="lectura">
+      <p>El pico histórico es diciembre de 2008 (37 413 procesos en un mes) y 2008 es el año más activo (314 598). Desde 2016 el flujo se estabiliza entre 5 000 y 8 000 procesos mensuales. La regularidad más fuerte es la caída de <b>enero</b>: 3 370 procesos frente a 10 676 del resto de meses, un 68 % menos, que responde al ciclo presupuestal (las entidades aprueban su plan anual de contrataciones en el primer trimestre). Para la Parte IV esto importa: un flujo estacional es mejor banco de pruebas para DGIM que uno uniforme.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo" id="h-quiebre">
+    <p class="pregunta">¿Se puede comparar la competencia a lo largo de todo el histórico?</p>
+    <div class="pipeline"><span class="spark">Spark: canasta proceso → postores, agregada por año</span><i>→</i><span class="local">navegador</span></div>
+    <div class="dos">
+      <div><div class="lienzo bajo"><canvas id="ch-postores" role="img" aria-label="Postores promedio por proceso y año"></canvas></div></div>
+      <div><div class="lienzo bajo"><canvas id="ch-unico" role="img" aria-label="Porcentaje de procesos con un único postor por año"></canvas></div></div>
+    </div>
+    <p class="nota">Barras grises: 2004-2014, descartado para el análisis de competencia.</p>
+    <div class="lectura">
+      <p>No. Entre 2004 y 2014 el dataset registra 1,5 a 2,3 postores por proceso y entre 56 % y 81 % de procesos con postor único; en 2015 la media salta a 4,0 y llega a 14,6 en 2024, con el postor único en 11-20 %. Un cambio así en un año no describe un mercado que se volvió competitivo: describe un cambio en <b>lo que el SEACE registra</b> (antes se publicaba sobre todo al ganador). Tomarlo al pie de la letra daría el hallazgo espectacular —y falso— de que la competencia se multiplicó por siete.</p>
+      <p><b>Decisión de diseño:</b> toda pregunta sobre competencia, montos y co-postulación se resuelve sobre 2015-2026. Es también el año desde el cual existe el monto normalizado en soles.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo">
+    <p class="pregunta">¿Dónde están los procesos y dónde está el dinero?</p>
+    <div class="pipeline"><span class="spark">Spark: floor(log10(monto)), approxQuantile</span><i>→</i><span class="local">navegador</span></div>
+    <div class="dos">
+      <div><h4>Procesos por banda de monto</h4><div class="lienzo bajo"><canvas id="ch-montos-n" role="img" aria-label="Procesos por banda de monto"></canvas></div></div>
+      <div><h4>Monto acumulado por banda</h4><div class="lienzo bajo"><canvas id="ch-montos-s" role="img" aria-label="Monto acumulado por banda"></canvas></div></div>
+    </div>
+    <div class="lectura">
+      <p>Los montos de 2015-2026 abarcan nueve órdenes de magnitud (mediana S/ 144 000, p90 S/ 1,41 M, p99 S/ 14,6 M, máximo S/ 3 035 M), así que el promedio engaña y la escala lineal es ilegible. Las dos distribuciones están desplazadas: la banda de cientos de miles concentra 400 681 procesos pero S/ 121 mil M; las bandas de diez millones a más reúnen solo 13 428 procesos (1,6 %) y movilizan S/ 576 mil M, el 58 % del total. Un patrón de co-postulación en la banda alta tiene consecuencias de otro orden que en compras menores.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo">
+    <p class="pregunta">¿Qué métodos de contratación mueven el dinero?</p>
+    <div class="pipeline"><span class="spark">Spark: groupBy(método)</span><i>→</i><span class="local">navegador</span></div>
+    <div class="lienzo"><canvas id="ch-metodo" role="img" aria-label="Monto convocado por método de contratación"></canvas></div>
+    <div class="lectura"><p>La adjudicación simplificada domina en número (362 499 procesos) pero la licitación pública, con 51 196, concentra S/ 388 mil M: siete veces menos procesos y 2,6 veces más dinero. El monto medio de una licitación (S/ 7,6 M) es 18 veces el de una adjudicación simplificada.</p></div>
+  </div>
+
+  <div class="hallazgo">
+    <p class="pregunta">¿Qué tan concentrado está el gasto entre entidades compradoras?</p>
+    <div class="pipeline"><span class="spark">Spark: groupBy(entidad) sobre 2015-2026</span><i>→</i><span class="local">curva de Lorenz en el navegador</span></div>
+    <div class="dos">
+      <div><div class="lienzo"><canvas id="ch-lorenz" role="img" aria-label="Curva de concentración del monto por entidad"></canvas></div><div class="lecturas" id="lec-lorenz"></div></div>
+      <div><h4>Las 10 entidades con mayor monto convocado</h4><div class="tabla-wrap" id="tb-entidades"></div></div>
+    </div>
+    <div class="lectura"><p>El 1 % de las 3 163 entidades concentra el 40,6 % del monto convocado y el 10 % llega al 76,9 %. Encabezan proyectos especiales de infraestructura de transporte del MTC, EsSalud y Sedapal. Para la vigilancia (P3) esto sugiere que un puñado de entidades explica la mayor parte del riesgo monetario, lo que hace de las frecuencias por entidad un caso de «heavy hitters».</p></div>
+  </div>
+
+  <div class="hallazgo">
+    <p class="pregunta">¿MapReduce con RDD o DataFrames/Spark SQL?</p>
+    <div class="pipeline"><span class="spark">Spark: la misma agregación en tres estilos, 830 974 filas en caché, mejor de 3</span></div>
+    <div class="lienzo bajo"><canvas id="ch-rdd" role="img" aria-label="Tiempo de las agregaciones por estilo"></canvas></div>
+    <div class="lectura">
+      <p>Se implementaron dos agregaciones de las preguntas de interés —monto por entidad, y procesos y monto medio por año y categoría— con RDD (<code>map</code> + <code>reduceByKey</code>), con la API de DataFrames y con Spark SQL. Los tres caminos dan el mismo resultado (MTC encabeza con S/ 68 418 M), pero el RDD tarda 22,6 s frente a 0,39 s: <b>58 veces más</b> (121 veces en la segunda). No es que los RDD sean lentos en abstracto: en PySpark cada fila viaja de la JVM a un proceso Python y vuelve, mientras que el DataFrame se queda en la JVM, Catalyst agrega parcialmente antes del <em>shuffle</em> y opera en memoria columnar. En claridad, la versión SQL es la más legible; el RDD se reserva para lo que SQL no expresa bien (el Apriori por niveles de la Parte V).</p>
+      <p><b>Particionado y plan.</b> El Parquet está particionado por año de publicación (25 directorios). Al filtrar <code>anio = 2025</code> el plan físico muestra <code>PartitionFilters</code> en el <code>FileScan</code>: Spark no abre los otros 24 directorios y la misma agregación baja de 0,61 s a 0,15 s. Particionar por el año del archivo de origen habría sido gratis pero inútil, porque ese año no coincide con el de publicación; la ventana 2015-2026 se traduce en leer 12 de 25 directorios.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ PARTE II -->
+<section id="parte2">
+  <h2><span class="parte">Parte II</span>Similitud: shingling, MinHash y LSH en Spark</h2>
+  <p class="intro">Representación propia: cada proceso es el conjunto de sus <b>shingles de 5 caracteres</b> sobre título y descripción normalizados (mayúsculas, sin tildes ni puntuación); cada proveedor es el <b>conjunto de procesos</b> a los que postuló. Se eligieron caracteres y no palabras porque el texto del SEACE mezcla códigos, siglas y texto libre, y los shingles de caracteres toleran variaciones menores de redacción (174 shingles por proceso en promedio).</p>
+
+  <div class="hallazgo">
+    <p class="pregunta">¿Por qué no comparar todos los pares?</p>
+    <div class="pipeline"><span class="spark">Spark: crossJoin de 2 000 procesos (1 999 000 pares), Jaccard exacto</span></div>
+    <div class="tiles">
+      <div class="tile"><div class="lab">Pares con Jaccard ≥ 0,6</div><div class="val">20</div><div class="sub">0,001 % de 1 999 000</div></div>
+      <div class="tile"><div class="lab">Fuerza bruta en la muestra</div><div class="val">21,9 s</div><div class="sub">2 000 procesos</div></div>
+      <div class="tile"><div class="lab">Extrapolado a 882 895 procesos</div><div class="val">≈ 49 días</div><div class="sub">crece con n²</div></div>
+    </div>
+    <div class="lectura"><p>La densidad de pares similares es de 10 por millón y el costo crece con el cuadrado del número de documentos: multiplicar el corpus por 441 multiplica el tiempo por 195 000. La similitud aproximada no es un atajo; es la única vía.</p></div>
+  </div>
+
+  <div class="hallazgo" id="h-minhash">
+    <p class="pregunta">¿Cuánto se pierde al estimar el Jaccard con MinHash?</p>
+    <div class="pipeline"><span class="spark">Spark SQL: 256 hashes h(x) = (a·x + b) mod (2³¹−1) con funciones de orden superior, sin UDF</span><i>→</i><span>error sobre 200 000 pares</span><i>→</i><span class="local">cota en vivo</span></div>
+    <div class="controles">
+      <div class="ctrl"><label for="ctl-T">Funciones hash T: <output id="out-T">128</output> <span class="vivo">en vivo</span></label>
+        <input type="range" id="ctl-T" min="3" max="9" step="1" value="7"></div>
+    </div>
+    <div class="leyenda"><span><b style="background:var(--s1)"></b>RMSE medido</span><span><b style="background:var(--s2)"></b>Error absoluto medio medido</span><span><b style="border-top:2px dashed var(--axis)"></b>Cota teórica 0,5/√T</span></div>
+    <div class="lienzo"><canvas id="ch-minhash" role="img" aria-label="Error de MinHash frente al número de funciones hash"></canvas></div>
+    <div class="lecturas" id="lec-minhash"></div>
+    <div class="lectura"><p>El error sigue el 1/√T que predice la teoría y queda siempre bajo la cota. Hay rendimientos decrecientes: pasar de 8 a 64 funciones baja el RMSE de 0,065 a 0,027, pero de 128 a 256 solo de 0,020 a 0,014 al precio de duplicar cómputo y almacenamiento. Con un umbral de interés de 0,8, un error típico de 0,02 no cambia qué pares se reportan: T = 128 es el punto de operación. Detalle de implementación que importó: con el primo 2⁶¹−1 de la literatura, el producto a·x desborda el entero de 64 bits de Spark y el hashing deja de ser uniforme.</p></div>
+  </div>
+
+  <div class="hallazgo" id="h-lsh">
+    <p class="pregunta">¿Cómo deciden las bandas (b) y filas (r) qué pares se pierden?</p>
+    <div class="pipeline"><span class="spark">Spark: LSH propio por bandas sobre firmas de 256</span><i>→</i><span>precisión/recall contra los 20 pares reales</span><i>→</i><span class="local">curva S en vivo</span></div>
+    <div class="controles">
+      <div class="ctrl"><label for="ctl-b">Bandas b: <output id="out-b">32</output> <span class="vivo">en vivo</span></label><input type="range" id="ctl-b" min="1" max="128" value="32"></div>
+      <div class="ctrl"><label for="ctl-r">Filas por banda r: <output id="out-r">8</output></label><input type="range" id="ctl-r" min="1" max="64" value="8"></div>
+      <div class="ctrl"><label>Longitud de firma b·r</label><output id="out-br">256</output></div>
+    </div>
+    <div class="leyenda"><span><b style="background:var(--s1)"></b>Configuración elegida</span><span><b style="border-top:2px dashed var(--axis)"></b>Referencia b=32, r=8</span><span><b style="border-top:2px dashed var(--s2)"></b>Umbral de interés 0,6</span></div>
+    <div class="lienzo"><canvas id="ch-curva-s" role="img" aria-label="Curva S de LSH"></canvas></div>
+    <div class="lecturas" id="lec-lsh"></div>
+    <h4>Medido en Spark sobre la muestra (la fila resaltada coincide con los controles)</h4>
+    <div class="tabla-wrap" id="tb-lsh"></div>
+    <div class="lectura">
+      <p>La tabla es la curva S vista desde los datos. Con b = 128 y r = 2 el umbral efectivo cae a 0,09: se recuperan los 20 pares pero con 577 471 falsos positivos, el 29 % de todos los pares, y LSH no ahorra nada. Con r ≥ 16 la precisión es perfecta pero se pierden 18 o 19 de los 20. El punto de operación es <b>b = 32, r = 8</b> (umbral 0,65): 37 candidatos, 85 % de recall y un filtrado exacto posterior que elimina los falsos positivos a costo despreciable. Advertencia: con 20 pares reales cada par vale 5 puntos de recall; la tendencia es sólida, el decimal no.</p>
+      <p><b>Por qué no MinHashLSH de MLlib a escala.</b> MLlib usa una tabla por función (r = 1 siempre), de modo que su umbral efectivo es 1/b: con 8 tablas cualquier par con Jaccard 0,125 es candidato. Sobre el corpus volcó más de 11 GB a disco y no terminó; la implementación propia con r = 8 no volcó un byte. La biblioteca no siempre domina a la implementación propia.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo">
+    <p class="pregunta">¿Qué son los pares casi idénticos que aparecen a escala?</p>
+    <div class="pipeline"><span class="spark">Spark: firmas T=128, b=16 × r=8, agrupación por banda y verificación exacta</span></div>
+    <div class="tiles">
+      <div class="tile"><div class="lab">Procesos 2015-2026</div><div class="val">882 895</div><div class="sub">≥ 40 shingles</div></div>
+      <div class="tile"><div class="lab">Pares candidatos</div><div class="val">4,2 M</div><div class="sub">0,0011 % de 389 750 M</div></div>
+      <div class="tile"><div class="lab">Pares con Jaccard ≥ 0,8</div><div class="val">589 224</div><div class="sub">98,1 % de la misma entidad</div></div>
+      <div class="tile"><div class="lab">Tiempo</div><div class="val">37 + 4 min</div><div class="sub">firmas + LSH y verificación</div></div>
+    </div>
+    <div class="lienzo bajo"><canvas id="ch-dist-jac" role="img" aria-label="Distribución del Jaccard de los pares encontrados"></canvas></div>
+    <div class="lectura">
+      <p>El hallazgo no es el número sino la composición: el 98,1 % de los pares pertenece a la <b>misma entidad</b>. No es plagio entre entidades sino <b>reconvocatoria</b>: un procedimiento desierto o nulo se vuelve a publicar con la misma descripción y un OCID nuevo (por ejemplo, una obra de transitabilidad del Gobierno Regional de Ucayali o la compra de carretillas del Gobierno Regional de Cusco, con dos OCID del mismo año). Consecuencia metodológica: si no se colapsan las reconvocatorias, los conteos por entidad y las reglas de la Parte V cuentan dos veces la misma convocatoria. LSH, planteada como técnica de búsqueda, terminó siendo una herramienta de <b>limpieza</b>.</p>
+      <p>El costo se concentró donde no se esperaba: generar las firmas tomó 37 minutos y el LSH propiamente dicho 4. La expresión SQL reconstruye el arreglo de 128 coeficientes en cada fila; difundirlo una vez (o usar MLlib solo para este paso) lo aceleraría. La elegancia de expresar el algoritmo en SQL puro se paga.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo">
+    <p class="pregunta">¿Hay proveedores que postulan siempre a lo mismo? (P1)</p>
+    <div class="pipeline"><span class="spark">Spark: RUC → conjunto de procesos, MinHash + LSH sobre 68 381 proveedores con ≥ 10 procesos</span></div>
+    <div class="tiles">
+      <div class="tile"><div class="lab">Pares con Jaccard ≥ 0,5</div><div class="val">2 275</div><div class="sub">en 54 s</div></div>
+      <div class="tile"><div class="lab">Fuerza bruta evitada</div><div class="val">2 338 M</div><div class="sub">pares</div></div>
+      <div class="tile"><div class="lab">Grupo más acoplado</div><div class="val">4 RUC</div><div class="sub">37 procesos, Jaccard 1,000 en los 6 pares</div></div>
+    </div>
+    <div class="lectura"><p>El caso más llamativo es un grupo de cuatro proveedores (tres empresas y una persona natural) que aparecen en exactamente los mismos 37 procesos: no es que se parezcan, es que nunca se presentan por separado. Admite lecturas legítimas —empresas vinculadas que se presentan en consorcio, o un mercado local tan pequeño que solo esos cuatro están habilitados— y por eso es una pista que justifica mirar, no una conclusión. La Parte V retoma el fenómeno desde la otra representación.</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ PARTE III -->
+<section id="parte3">
+  <h2><span class="parte">Parte III</span>Búsqueda aproximada de vecinos: IVF y HNSW</h2>
+  <p class="intro"><b>Representación vectorial.</b> TF-IDF (TF sublineal, 20 000 términos con frecuencia de documento entre 5 y 30 %) sobre la descripción del proceso más las descripciones CUBSO de sus ítems, calculado en Spark SQL para 885 204 procesos (12,4 M de pares documento-término en 54 s). Luego se reduce con LSA (SVD truncada) a 256 dimensiones, porque FAISS necesita vectores densos y el TF-IDF denso pesaría 70 GB. El título se excluyó a propósito: en el SEACE es la nomenclatura del procedimiento («DIRECTA-PROC-7-2016-UNT-1») y sus siglas hacían que un liofilizador y un potenciostato de la misma universidad salieran con coseno 1,0.</p>
+
+  <div class="hallazgo">
+    <h3>Conceptos: cómo evitan IVF y HNSW recorrer todo el corpus</h3>
+    <div class="dos">
+      <div><h4>IVF (índice de archivo invertido)</h4><p>Agrupa los vectores con k-means en <code>nlist</code> celdas y guarda cada vector en la lista de su centroide. Una consulta se compara primero con los centroides y solo recorre las <code>nprobe</code> listas más cercanas. Costo ≈ nlist + nprobe·(n/nlist) comparaciones. Falla cuando el vecino verdadero cae justo al otro lado de una frontera entre celdas; subir <code>nprobe</code> lo corrige a cambio de tiempo.</p></div>
+      <div><h4>HNSW (grafo jerárquico navegable de mundo pequeño)</h4><p>Cada vector es un nodo conectado a <code>M</code> vecinos, en capas: las superiores son escasas y permiten saltos largos, la inferior tiene a todos. La búsqueda baja de capa en capa haciendo una búsqueda voraz con una lista de <code>efSearch</code> candidatos. Costo ≈ O(log n). Suele ser la más rápida a recall moderado, pero el grafo ocupa memoria extra, tarda en construirse y, como se ve abajo, sufre cuando hay muchos vectores idénticos.</p></div>
+    </div>
+  </div>
+
+  <div class="hallazgo" id="h-dims">
+    <p class="pregunta">¿Cuánto se pierde antes del índice, al pasar del TF-IDF a vectores densos?</p>
+    <div class="pipeline"><span class="spark">Spark: TF-IDF</span><i>→</i><span class="local">local: SVD de 256 componentes y coseno exacto disperso para 300 consultas</span></div>
+    <div class="leyenda" id="ley-dims"></div>
+    <div class="lienzo bajo"><canvas id="ch-dims" role="img" aria-label="Recall de LSA frente al número de dimensiones"></canvas></div>
+    <div class="lectura"><p>Este es el hallazgo más importante de la Parte III y conviene decirlo antes de mostrar los índices: incluso con 256 dimensiones (30,5 % de la varianza) el espacio LSA solo recupera el <b>33 %</b> de los 10 vecinos exactos del TF-IDF y el <b>69 %</b> de los casi-duplicados. Las descripciones son cortas y el vocabulario muy amplio, así que la SVD conserva los temas generales («obra de agua», «refrigerios») y pierde los detalles que separan un proceso de otro. La pérdida de precisión de la Parte III está en la vectorización, no en IVF ni en HNSW. Por eso la lectura de la pregunta P2 (más abajo) usa los vecinos exactos del TF-IDF disperso.</p></div>
+  </div>
+
+  <div class="hallazgo" id="h-ann">
+    <p class="pregunta">¿Cuánto más rápido responden IVF y HNSW, y qué recall sacrifican frente a la fuerza bruta?</p>
+    <div class="pipeline"><span class="local">local · FAISS: 884 204 vectores de 256 dims, 1 000 consultas separadas de la base, latencia en 1 hilo</span></div>
+    <div class="controles">
+      <div class="ctrl"><label for="ctl-ann-config">Índice</label><select id="ctl-ann-config"></select></div>
+      <div class="ctrl"><label for="ctl-ann-param">Parámetro de búsqueda: <output id="out-ann-param"></output></label><input type="range" id="ctl-ann-param" min="0" max="7" value="3"></div>
+    </div>
+    <div class="leyenda" id="ley-ann"></div>
+    <div class="lienzo alto"><canvas id="ch-ann" role="img" aria-label="Recall frente a latencia de los índices ANN"></canvas></div>
+    <div class="lecturas" id="lec-ann"></div>
+    <div class="lectura" id="lectura-ann">
+      <p>Recall@10 tolerante a empates: el corpus tiene muchas descripciones idénticas, y si una consulta tiene 30 vecinos con coseno 1,0 cualquier subconjunto de 10 es exacto; un resultado cuenta como acierto si alcanza la similitud del décimo vecino exacto.</p>
+      <p>Medido sin carga concurrente en la máquina: la búsqueda exacta tarda <b>57,6 ms</b> por consulta. <b>IVF</b> con nlist = 4 096 llega a recall 0,982 con nprobe = 16 en 0,48 ms (120 veces más rápido) y a 0,991 con nprobe = 32 en 0,73 ms (79 veces). <b>HNSW</b> domina a latencias muy bajas: con M = 32 y efSearch = 64 da recall 0,954 en 0,14 ms (420 veces más rápido), pero se estanca en 0,98 aun con efSearch = 512 (1 ms), por debajo de IVF a igual tiempo. La causa probable son los miles de vectores idénticos (reconvocatorias): el grafo gasta aristas en duplicados y la búsqueda voraz queda atrapada en mesetas de similitud 1,0.</p>
+      <p>Construcción y memoria: IVF tarda 2-46 s (el k-means crece con nlist) y ocupa lo mismo que los datos (≈ 870 MB); HNSW tarda 2-2,5 minutos y suma 8-27 % de memoria por las aristas (931-1 093 MB). Para este corpus elegiríamos <b>IVF con nlist = 4 096 y nprobe = 16-32</b>: recall ≥ 0,98 en menos de un milisegundo y construcción en menos de un minuto. Con todo, la referencia que más importa está arriba: ningún índice recupera lo que la SVD ya perdió.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo" id="h-p2">
+    <p class="pregunta">P2 · ¿Los procesos casi idénticos terminan con los mismos postores y el mismo ganador?</p>
+    <div class="pipeline"><span class="local">local: 10 vecinos exactos por coseno en el TF-IDF de 1 000 consultas</span><i>→</i><span class="spark">Spark: join con canastas de postores y adjudicaciones</span></div>
+    <div class="tabla-wrap" id="tb-p2-vecinos"></div>
+    <h4>Solo vecinos con coseno ≥ 0,80: ¿misma entidad o distinta?</h4>
+    <div class="tabla-wrap" id="tb-p2-contraste"></div>
+    <div class="lectura">
+      <p>La similitud del texto anticipa quién gana. Dos procesos al azar del mismo tipo comparten ganador en el 0,02 % de los casos; con texto casi idéntico (coseno ≥ 0,95) la cifra sube al <b>15 %</b> y la similitud de Jaccard de sus postores es 0,21, ciento cincuenta veces la del azar. Buena parte se explica por la misma entidad que reconvoca (75 % de esos pares), pero el contraste más informativo es el de las entidades <b>distintas</b>: aun ahí, los procesos con texto casi igual comparten ganador en el 10 % de los casos.</p>
+      <p>Hay dos lecturas, y el dato no permite elegir entre ellas sin mirar caso por caso. La primera es benigna: mercados especializados con pocos oferentes, donde el mismo proveedor gana porque es de los pocos que hace eso. La segunda merece revisión: términos de referencia copiados entre entidades que, a la vez, reproducen al mismo ganador. La técnica sirve para priorizar qué familias de procesos auditar, no para concluir.</p>
+    </div>
+    <h4>Ejemplos de consultas y sus vecinos (texto público de las convocatorias)</h4>
+    <div id="ann-ejemplos"></div>
+  </div>
+</section>
+
+<!-- ================================================================ PARTE IV -->
+<section id="parte4">
+  <h2><span class="parte">Parte IV</span>Minería de flujos: Bloom, Count-Min Sketch y DGIM</h2>
+  <p class="intro"><b>Simulación del flujo.</b> Spark ordena por <code>tender_datePublished</code> los 885 348 procesos de 2015-2026 y sus 7 959 731 postulaciones, y calcula la <b>verdad exacta</b> contra la que se mide cada estructura (primera aparición por clave, conteos por RUC y por entidad, conteo en ventana deslizante). Las tres estructuras se implementaron desde cero y procesan el flujo en una sola pasada; para barrer parámetros se usan fórmulas vectorizadas que, verificado en el script, dan <b>exactamente</b> los mismos resultados que la pasada secuencial. Hashing: doble hashing de Kirsch-Mitzenmacher sobre dos SipHash de 64 bits.</p>
+
+  <div class="hallazgo" id="h-bloom">
+    <p class="pregunta">¿Este RUC ya postuló antes? ¿Este texto ya lo publicó la entidad?</p>
+    <div class="pipeline"><span class="spark">Spark: orden global y row_number por clave</span><i>→</i><span class="local">local: Bloom propio en una pasada</span><i>→</i><span class="local">FP teórico en vivo</span></div>
+    <div class="controles">
+      <div class="ctrl"><label for="ctl-bloom-tarea">Tarea de pertenencia</label><select id="ctl-bloom-tarea"><option value="ruc">Proveedor recurrente (7,96 M postulaciones, 705 mil RUC)</option><option value="reconvocatoria">Reconvocatoria: entidad + texto (885 mil procesos)</option></select></div>
+      <div class="ctrl"><label for="ctl-bloom-m">Bits por clave m/n: <output id="out-bloom-m">8</output> <span class="vivo">en vivo</span></label><input type="range" id="ctl-bloom-m" min="1" max="20" value="8"></div>
+      <div class="ctrl"><label for="ctl-bloom-k">Funciones hash k: <output id="out-bloom-k">6</output></label><input type="range" id="ctl-bloom-k" min="1" max="14" value="6"></div>
+    </div>
+    <div class="leyenda"><span><b style="background:var(--s1)"></b>Teórica con el k elegido</span><span><b style="background:var(--s2)"></b>Medida en el flujo (puntos)</span><span><b style="border-top:2px dashed var(--axis)"></b>Teórica con k óptimo</span></div>
+    <div class="lienzo"><canvas id="ch-bloom" role="img" aria-label="Tasa de falsos positivos del Bloom Filter"></canvas></div>
+    <div class="lecturas" id="lec-bloom"></div>
+    <div class="lectura">
+      <p>Un Bloom no tiene falsos negativos (0 medidos): un proveedor recurrente nunca se marca como nuevo. El error va en un solo sentido, un <b>proveedor nuevo marcado como ya visto</b>, y esa es justamente la alerta que importaría a un órgano de control («primera vez que esta empresa se presenta»). Con 8 bits por clave y k = 6 el filtro ocupa 0,67 MB frente a 69,6 MB del conjunto exacto en Python (100 veces menos) y pierde el 0,41 % de esas alertas: 2 900 de 705 324 proveedores nuevos.</p>
+      <p>La tasa medida queda por debajo de la fórmula (1 − e<sup>−kn/m</sup>)<sup>k</sup> porque la fórmula describe el filtro <em>lleno</em>, mientras que en el flujo cada consulta se hace con el filtro parcialmente lleno. El «punto en que reducir memoria empieza a costar alertas» está entre 4 y 6 bits por clave (0,34-0,50 MB): ahí el error salta del 1,4 % al 4,6 %. En tiempo, el Bloom en Python puro es más lento que el <code>set</code> nativo (2,0 frente a 1,1 µs por evento): la ganancia es de memoria, no de velocidad, a este volumen.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo" id="h-cms">
+    <p class="pregunta">¿Quiénes son los proveedores y entidades más activos del flujo, sin guardar un contador por cada uno?</p>
+    <div class="pipeline"><span class="spark">Spark: groupBy exacto</span><i>→</i><span class="local">local: Count-Min propio, d filas × w columnas</span></div>
+    <div class="controles">
+      <div class="ctrl"><label for="ctl-cms-tarea">Frecuencia de</label><select id="ctl-cms-tarea"><option value="ruc">Postulaciones por RUC (705 mil claves)</option><option value="entidad">Procesos por entidad (3 163 claves)</option></select></div>
+      <div class="ctrl"><label for="ctl-cms-w">Ancho w: <output id="out-cms-w">16 384</output></label><input type="range" id="ctl-cms-w" min="6" max="17" value="14"></div>
+      <div class="ctrl"><label for="ctl-cms-d">Profundidad d: <output id="out-cms-d">4</output></label><select id="ctl-cms-d"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>8</option></select></div>
+    </div>
+    <div class="leyenda" id="ley-cms"></div>
+    <div class="lienzo"><canvas id="ch-cms" role="img" aria-label="Error del Count-Min Sketch frente a la memoria"></canvas></div>
+    <div class="lecturas" id="lec-cms"></div>
+    <div class="lectura">
+      <p>El Count-Min solo sobreestima, y por como mucho εN con probabilidad 1 − δ (ε = e/w, δ = e<sup>−d</sup>); en el flujo de RUC más del 99,99 % de las claves quedó dentro de esa cota en todas las configuraciones. Con w = 16 384 y d = 4 (512 KB frente a 85,8 MB del diccionario exacto) el error relativo en los 100 RUC más activos es del 3 % y el top 20 se recupera completo: para <b>vigilar a los grandes</b> basta. Un detalle que el gráfico deja ver: <em>a igual memoria</em>, una sola fila ancha (d = 1) da menos error medio que cuatro filas angostas. Aumentar d no reduce el error típico sino la probabilidad de un error grande (δ = e<sup>−d</sup>): se paga en memoria la garantía, no la precisión media.</p>
+      <p>Para la cola larga es inútil: la mayoría de los 705 mil RUC postula pocas veces y un sobreconteo medio de 152 eventos convierte un 1 en 153. Esa es la lectura correcta del sketch: responde «¿quién domina el flujo?», no «¿cuántas veces postuló este proveedor pequeño?». Y para las entidades —solo 3 163— el diccionario exacto ocupa 0,4 MB, menos que el propio sketch: ahí no hay nada que ahorrar, el resumen no se justifica.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo" id="h-dgim">
+    <p class="pregunta">¿Cuántos procesos de más de S/ 1 millón hubo en el último tramo del flujo?</p>
+    <div class="pipeline"><span class="spark">Spark: acumulado(t) − acumulado(t − N) como conteo exacto</span><i>→</i><span class="local">local: DGIM propio con hasta r cubetas por tamaño</span></div>
+    <div class="controles">
+      <div class="ctrl"><label for="ctl-dgim-n">Ventana N (procesos)</label><select id="ctl-dgim-n"><option value="1000">1 000 (≈ 1 semana)</option><option value="4000" selected>4 000 (≈ 1 mes)</option><option value="10000">10 000 (≈ 2,5 meses)</option><option value="50000">50 000 (≈ 1 año)</option></select></div>
+      <div class="ctrl"><label for="ctl-dgim-r">Cubetas por tamaño r</label><select id="ctl-dgim-r"><option value="2" selected>2 (DGIM clásico)</option><option value="3">3</option><option value="5">5</option></select></div>
+    </div>
+    <div class="leyenda" id="ley-dgim"></div>
+    <div class="lienzo"><canvas id="ch-dgim" role="img" aria-label="Conteo DGIM frente al exacto en la ventana"></canvas></div>
+    <div class="lecturas" id="lec-dgim"></div>
+    <div class="lectura">
+      <p>El flujo de bits marca con 1 cada proceso de monto ≥ S/ 1 M (12,1 %). DGIM guarda O(r·log² N) bits y estima con error acotado por la mitad de la cubeta más antigua. Medido: con r = 2 el error medio es 10-11 % (máximo 35-42 %, dentro de la cota del 50 %); con r = 5 baja a 4 % usando aún solo 1 134 bits para una ventana de 50 000, frente a los 50 000 bits que guardaría la ventana exacta. La memoria crece con el logaritmo de N, no con N.</p>
+      <p>Lectura honesta: a este volumen (≈ 200 procesos por día) guardar la ventana exacta de un año cuesta 6 KB, así que DGIM no resuelve un problema real del SEACE de hoy; su valor está en que la misma vigilancia funcionaría igual sobre un flujo de millones de eventos por día (por ejemplo, órdenes de compra de todas las entidades en tiempo real). La caída de cada enero se ve en la serie como un valle sincronizado del conteo exacto y del estimado.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ PARTE V -->
+<section id="parte5">
+  <h2><span class="parte">Parte V</span>Reglas de asociación: Apriori y FP-Growth</h2>
+    <p class="intro"><b>Transacción elegida:</b> cada proceso es una canasta y sus ítems son los RUC que figuran como postores. Se descartó la canasta «proceso → códigos de ítem» porque solo el 3,7 % de los procesos tiene dos o más códigos de ítem: Apriori correría sin encontrar nada. <b>Preprocesamiento</b> sobre las 816 637 canastas de 2015-2026: se colapsan 35 100 reconvocatorias (misma entidad, mismo texto; las detectó LSH en la Parte II) para no contar dos veces la misma convocatoria, y se descartan 163 097 canastas con 1 postor (no hay co-ocurrencia) o más de 40 (compras masivas donde coincidir no es una elección: una canasta de 300 postores genera 45 000 pares). Quedan <b>618 440 canastas</b> con 9,4 postores de media.</p>
+
+  <div class="hallazgo" id="h-apriori">
+    <p class="pregunta">¿Apriori o FP-Growth? Validación y costo sobre un mismo subconjunto</p>
+    <div class="pipeline"><span class="spark">Spark RDD: Apriori propio (flatMap + reduceByKey por nivel, poda con broadcast)</span><i>vs</i><span class="spark">Spark MLlib: FP-Growth (PFP)</span><i>·</i><span>canastas de 2023, soporte ≥ 15 procesos</span></div>
+    <div class="dos">
+      <div><div class="tabla-wrap" id="tb-apriori"></div></div>
+      <div><div class="lecturas" id="lec-apriori"></div></div>
+    </div>
+    <div class="lectura">
+      <p>Los dos algoritmos dan <b>exactamente los mismos conjuntos y soportes</b> nivel por nivel, lo que valida la implementación propia. Apriori necesitó 484 s para llegar a tamaño 4; FP-Growth recorrió el subconjunto completo en 26 s, sin tope de tamaño. La diferencia no es solo de constante: Apriori genera y cuenta candidatos nivel por nivel (con un viaje JVM↔Python por canasta), mientras FP-Growth comprime las canastas en un árbol de prefijos y nunca genera candidatos. En 2023 los conjuntos frecuentes llegan a 20 RUC: Apriori tendría que recorrer 20 niveles y combinaciones del orden de 2<sup>20</sup>.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo" id="h-tamanios">
+    <p class="pregunta">¿Por qué hay 585 mil conjuntos frecuentes en 618 mil canastas?</p>
+    <div class="pipeline"><span class="spark">Spark MLlib: FP-Growth sobre 618 440 canastas, soporte ≥ 30 procesos (262 s)</span><i>→</i><span class="spark">anti-join para extraer maximales (6 s)</span></div>
+    <div class="leyenda" id="ley-tamanios"></div>
+    <div class="lienzo bajo"><canvas id="ch-tamanios" role="img" aria-label="Conjuntos frecuentes y maximales por tamaño"></canvas></div>
+    <div class="lectura"><p>Un grupo de 14 proveedores que concurre junto 30 veces genera por sí solo 2<sup>14</sup> = 16 384 subconjuntos frecuentes. Reportar los 585 205 conjuntos sería reportar mil veces el mismo grupo. Por eso el análisis se hace sobre los <b>183 630 conjuntos maximales</b> (frecuentes sin ningún superconjunto frecuente), que describen cada grupo una sola vez: el más grande reúne 14 RUC. Las reglas, a su vez, se restringen a antecedentes de uno o dos RUC para que se puedan leer.</p></div>
+  </div>
+
+  <div class="hallazgo" id="h-camarillas">
+    <p class="pregunta">P1 · ¿Qué grupos de proveedores concurren sistemáticamente, dónde, y ganan más de lo que les tocaría?</p>
+    <div class="pipeline"><span class="spark">Spark: maximales de ≥ 3 RUC → join por RUC con las canastas → entidad, rubro, años y adjudicaciones</span></div>
+    <div class="controles">
+      <div class="ctrl"><label for="ctl-cam-orden">Ordenar por</label><select id="ctl-cam-orden"><option value="tamano">Tamaño del grupo</option><option value="exceso">Exceso de triunfo sobre el azar</option><option value="procesos">Procesos en común</option></select></div>
+      <div class="ctrl"><label for="ctl-cam-alcance">Alcance</label><select id="ctl-cam-alcance"><option value="todas">Todas</option><option value="una">Concentradas en una sola entidad</option><option value="varias">En varias entidades</option></select></div>
+      <div class="ctrl"><label>Mostrando</label><output id="out-cam-n"></output></div>
+    </div>
+    <div class="tabla-wrap" id="tb-camarillas"></div>
+    <div class="lecturas" id="lec-cam"></div>
+    <div class="lectura">
+      <p><b>Cómo leer «gana el grupo».</b> Es la proporción de procesos adjudicados en que el ganador pertenece al grupo. Sola no dice nada: si 11 de 12 postores son del grupo, ganar el 92 % es lo esperable. Por eso cada fila trae la <b>tasa esperada al azar</b> (tamaño del grupo ÷ postores de cada proceso, promediada). Así leído aparecen dos patrones distintos:</p>
+      <ul class="lista">
+        <li><b>Grupos grandes dentro de una sola entidad.</b> Los mayores (12-14 RUC) concurren siempre en una única entidad (PRONIED, el Gobierno Regional de Loreto, un instituto vial municipal), es decir, son el mercado local de proveedores habituales de ese comprador. En varios ganan <em>menos</em> de lo esperado (22 % frente a 44 %): concurrir juntos no implica repartirse los contratos.</li>
+        <li><b>Una red de proveedores del sistema judicial.</b> 157 de las 300 camarillas mayores son grupos de 9 a 11 proveedores (empresas y algunas personas naturales) que concurren en 30-45 procesos de <em>bienes</em> repartidos en 15-31 cortes superiores y sedes del Poder Judicial. Todas ganan por encima del azar: en mediana el 83 % de los procesos adjudicados frente al 36 % esperado, con casos de 97 %. Es el patrón más consistente del dataset y la pista más clara para P1. La lectura alternativa es plausible y no se puede descartar con estos datos: un rubro de bienes específico con pocos proveedores reales que atienden a todo el Poder Judicial, mientras el resto de postores registrados no llega a ofertar. Distinguir una de otra exige revisar las ofertas y los precios de esos procesos.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hallazgo" id="h-reglas">
+    <p class="pregunta">Reglas de asociación entre postores: ¿quién acompaña a quién?</p>
+    <div class="pipeline"><span class="spark">Spark MLlib: associationRules (171 013 con antecedente ≤ 2 y confianza ≥ 0,5)</span><i>→</i><span>3 000 de mayor soporte con contexto</span><i>→</i><span class="local">filtros en vivo</span></div>
+    <div class="controles">
+      <div class="ctrl"><label for="ctl-r-sop">Procesos en común ≥ <output id="out-r-sop">250</output> <span class="vivo">en vivo</span></label><input type="range" id="ctl-r-sop" min="230" max="2000" step="10" value="250"></div>
+      <div class="ctrl"><label for="ctl-r-conf">Confianza ≥ <output id="out-r-conf">50 %</output></label><input type="range" id="ctl-r-conf" min="50" max="100" value="50"></div>
+      <div class="ctrl"><label for="ctl-r-lift">Lift ≥ <output id="out-r-lift">20</output></label><input type="range" id="ctl-r-lift" min="1.3" max="3.2" step="0.05" value="1.3"></div>
+      <div class="ctrl"><label for="ctl-r-tam">RUC en la regla ≥ <output id="out-r-tam">2</output></label><input type="range" id="ctl-r-tam" min="2" max="3" value="2"></div>
+      <div class="ctrl"><label>Resultado</label><output id="out-r-n"></output></div>
+    </div>
+    <div class="leyenda" id="ley-reglas"></div>
+    <div class="lienzo"><canvas id="ch-reglas" role="img" aria-label="Reglas por confianza y lift"></canvas></div>
+    <div class="tabla-wrap" id="tb-reglas"></div>
+    <div class="lectura">
+      <p><b>Métricas.</b> Soporte = fracción de canastas donde están todos; confianza = P(consecuente | antecedente); lift = confianza ÷ P(consecuente). Como cada RUC aparece en una fracción mínima de las 618 mil canastas, todas las reglas tienen lift ≫ 1 (de 25 a 1 700): el lift aquí separa poco y la confianza y el número de procesos en común son los que ordenan. Las ocho reglas más relevantes, y lo que dicen:</p>
+      <ul class="lista">
+        <li><b>P0205 → P0206</b> (obras; 4 406 procesos en 913 entidades; confianza 0,81; lift 60) y su inversa (confianza 0,53): cuando la primera empresa se presenta, la segunda la acompaña en cuatro de cada cinco casos, en todo el país. <b>Ninguna de las dos gana nunca</b> (0 % frente a 15 % esperado).</li>
+        <li><b>P0208 ↔ P0209</b> (obras; 3 720 procesos, 627 entidades; confianza 0,83/0,66; lift 91), <b>P0210 ↔ P0211</b> (obras; 3 419 procesos, 696 entidades; lift 91) y <b>P0212 → P0206</b> (obras; 2 895 procesos, 947 entidades; confianza 0,90): el mismo patrón, parejas que coinciden en miles de procesos de cientos de entidades y ganan en torno al 0,1 % de las veces.</li>
+        <li><b>P0100 ↔ P0101</b> y <b>P0101 → P0096</b> (servicios; ~2 900 procesos, ~780 entidades; ganan 0,2-0,3 % frente a 13 %).</li>
+        <li><b>P0207 → P0084</b> (bienes; 4 099 procesos en 366 entidades; confianza 0,94; lift 66) y <b>P0082 → P0084</b> (bienes; 3 079 procesos; confianza 0,73): P0084 es un proveedor «ancla» al que otros dos acompañan por separado, y cada pareja gana el 52-62 % de las veces frente al 25-31 % esperado.</li>
+      </ul>
+      <p><b>Interpretación.</b> Una pareja que se presenta a 4 406 procesos y no gana ninguno no está compitiendo: lo más probable es que la tabla de postores del OCDS-OECE incluya <b>participantes registrados</b> que no llegan a presentar oferta (registrarse en el SEACE es gratuito y electrónico, y hay empresas que lo hacen de forma masiva para recibir información). Es un hallazgo de calidad de datos tan importante como el quiebre de 2015: la canasta mide <em>registro</em> de interés, no necesariamente oferta. Matiza P1 —parte del «postor promedio de 14,6» de 2024 son registros pasivos— y explica por qué un grupo activo pequeño puede ganar casi siempre en procesos con 25 «postores». El caso de P0084 es el opuesto: un proveedor que sí gana, rodeado de acompañantes recurrentes, el patrón que en la literatura de colusión se llama oferta de cobertura y que aquí solo puede señalarse como algo a revisar.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo">
+    <p class="pregunta">¿Se cruzan las dos técnicas de P1? MinHash/LSH (Parte II) frente a FP-Growth (Parte V)</p>
+    <div class="lectura" style="border:0;padding:0;margin:0">
+      <p>De los 162 pares de proveedores con Jaccard ≥ 0,9 que encontró LSH, solo 6 caen dentro de un conjunto frecuente maximal. No es una contradicción sino una diferencia de escala: 127 de esos pares tienen menos de 30 procesos en su historial, por debajo del umbral de FP-Growth, de modo que este no puede verlos. A la inversa, las camarillas de 10-14 RUC de FP-Growth no aparecen en LSH porque cada empresa también postula a muchos otros procesos y el Jaccard por pares se diluye. Las dos técnicas son <b>complementarias</b>: LSH encuentra parejas pequeñas que nunca se separan (el grupo de cuatro con 37 procesos); FP-Growth encuentra grupos grandes que coinciden a menudo aunque no siempre.</p>
+    </div>
+  </div>
+
+  <div class="hallazgo" id="h-cubso">
+    <p class="pregunta">Lado de la demanda: ¿qué compran juntas las entidades?</p>
+    <div class="pipeline"><span class="spark">Spark: entidad-año → clases CUBSO (6 dígitos, nivel «clase» UNSPSC); FP-Growth con soporte ≥ 10 %</span></div>
+    <div class="controles"><div class="ctrl"><label for="ctl-c-lift">Lift ≥ <output id="out-c-lift">1,0</output> <span class="vivo">en vivo</span></label><input type="range" id="ctl-c-lift" min="10" max="26" value="10"></div><div class="ctrl"><label>Resultado</label><output id="out-c-n"></output></div></div>
+    <div class="tabla-wrap" id="tb-cubso"></div>
+    <div class="lectura"><p>Sobre 28 081 canastas entidad-año (12,5 clases de media) aparecen 37 reglas, y las de mayor lift (≈ 2,4) unen <b>leche evaporada, arroz, diésel y obras viales</b>: es la huella de las municipalidades distritales, que compran alimentos para los programas sociales que gestionan (Vaso de Leche, complementación alimentaria) a la vez que mantienen caminos vecinales. Con soporte de 10-16 % y lift moderado son reglas de <em>perfil</em> de entidad, no de anomalía: sirven para segmentar compradores (por ejemplo, para comparar precios de arroz entre municipios del mismo perfil).</p></div>
+  </div>
+
+</section>
+
+<!-- ================================================================ PARTE VI -->
+<section id="parte6" class="discusion">
+  <h2><span class="parte">Parte VI</span>Análisis y discusión crítica</h2>
+    <p class="intro">Las cinco preguntas del enunciado, respondidas con las cifras de las Partes I a V y no en abstracto.</p>
+
+  <h3>1. ¿Qué técnicas aportaron valor concreto y cuáles poco?</h3>
+  <div class="tabla-wrap"><table>
+    <thead><tr><th>Técnica</th><th>Valor para nuestras preguntas</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td>EDA en Spark</td><td><b>Alto</b></td><td>El quiebre del registro de postores en 2015 cambió el diseño de todo el proyecto. Sin él, P1 y P2 se habrían respondido sobre datos que no miden competencia.</td></tr>
+      <tr><td>MinHash + LSH</td><td><b>Alto</b></td><td>Respondió P1 (2 275 pares de proveedores acoplados, el grupo de cuatro con Jaccard 1,000) y, de rebote, destapó las reconvocatorias (98 % de los casi-duplicados), lo que corrigió los conteos de la Parte V.</td></tr>
+      <tr><td>FP-Growth</td><td><b>Alto</b></td><td>Encontró camarillas de postores que LSH no ve (grupos grandes que coinciden a menudo pero no siempre) y, con la tasa esperada al azar, separó a los grupos que ganan de más de los que solo acompañan. También destapó que la canasta incluye registros pasivos: parejas que coinciden en miles de procesos y no ganan ninguno.</td></tr>
+      <tr><td>Bloom y Count-Min</td><td><b>Medio</b></td><td>Responden P3 con cifras de memoria y alertas perdidas, pero al volumen actual del SEACE el conjunto exacto cabe en memoria; su valor es de diseño para un monitoreo en tiempo real.</td></tr>
+      <tr><td>ANN (IVF/HNSW)</td><td><b>Medio-bajo</b></td><td>Los índices funcionan muy bien (IVF: recall 0,98 en 0,5 ms, 120 veces más rápido que la búsqueda exacta), pero la representación densa LSA pierde dos tercios de los vecinos reales. Para P2 terminamos usando el TF-IDF disperso exacto: a este volumen cuesta 13 ms por consulta.</td></tr>
+      <tr><td>DGIM</td><td><b>Bajo hoy</b></td><td>Funciona dentro de su cota, pero una ventana exacta de un año ocupa 6 KB. Es la técnica correcta para otra escala, no para esta.</td></tr>
+      <tr><td>Apriori</td><td><b>Didáctico</b></td><td>Valida a FP-Growth (mismos conjuntos y soportes) pero es unas 19 veces más lento aun deteniéndose en tamaño 4, y explota en las camarillas grandes; no lo usaríamos en producción.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>2. ¿Cuánto se pierde con los métodos aproximados, y vale la pena?</h3>
+  <div class="tabla-wrap"><table>
+    <thead><tr><th>Método</th><th>Pérdida medida</th><th>Ganancia</th><th>¿Vale la pena?</th></tr></thead>
+    <tbody>
+      <tr><td>MinHash T=128</td><td>RMSE 0,020 en el Jaccard</td><td>Firma fija de 512 bytes por proceso</td><td>Sí: no cambia qué pares superan 0,8</td></tr>
+      <tr><td>LSH b=32, r=8</td><td>15 % de pares similares perdidos</td><td>Se compara el 0,001 % de los pares (49 días → 4 min)</td><td>Sí, si se acepta perder parte de la cola cercana al umbral; con r más bajo se recupera recall a costa de candidatos</td></tr>
+      <tr><td>LSA 256 dims</td><td>67 % de los 10 vecinos reales</td><td>Vectores densos indexables</td><td><b>No para P2</b>: la pérdida es mayor que la de cualquier índice</td></tr>
+      <tr><td>IVF / HNSW</td><td>1-2 % de recall (IVF); 5 % (HNSW en su punto más rápido)</td><td>Entre 80 y 420 veces más rápido</td><td>Sí, dentro del espacio vectorial</td></tr>
+      <tr><td>Bloom 8 bits/clave</td><td>0,41 % de proveedores nuevos no alertados</td><td>100 veces menos memoria</td><td>Sí para un monitor; no para un registro legal</td></tr>
+      <tr><td>Count-Min 512 KB</td><td>3 % en el top 100; inútil en la cola</td><td>170 veces menos memoria</td><td>Sí para «quién domina»; no para auditar a un proveedor pequeño</td></tr>
+      <tr><td>DGIM r=5</td><td>4 % de error medio</td><td>2 % de la memoria de la ventana</td><td>Sí a gran escala; a esta escala, la ventana exacta es más simple</td></tr>
+    </tbody>
+  </table></div>
+  <p class="callout">La lección transversal: la aproximación del <b>algoritmo</b> casi nunca fue el problema; la de la <b>representación</b> sí (LSA en la Parte III, el título dentro del texto en la primera corrida). Medir contra la verdad exacta en cada paso fue lo que permitió verlo.</p>
+
+  <h3>3. ¿Qué tareas se beneficiaron realmente de Spark?</h3>
+  <ul class="lista">
+    <li><b>Sí:</b> la ingesta (17 GB y 46,5 M de filas en 5 minutos, con esquemas cambiantes y verificación fila a fila), las representaciones (joins de 10 M de postulaciones), el EDA sobre el histórico completo, el TF-IDF (12,4 M de pares documento-término en 54 s), el LSH a escala (4,2 M de candidatos verificados) y FP-Growth sobre 618 mil canastas. En pandas, con 24 GB de RAM, la tabla de partes (12,8 M de filas) junto a la de postores no cabe cómodamente.</li>
+    <li><b>No hacía falta:</b> los sketches de flujo (son secuenciales por definición y el objetivo es que quepan en una máquina), los índices ANN (FAISS en memoria responde en milisegundos), DGIM y las figuras. Todos corren en local.</li>
+    <li><b>Donde el overhead se notó:</b> el RDD en Python fue 58 veces más lento que el DataFrame por la serialización JVM↔Python; el Apriori propio sobre RDD tardó unos minutos donde FP-Growth tardó segundos; la firma MinHash en SQL puro tomó 37 minutos porque reconstruye 128 coeficientes en cada fila; y una ventana deslizante <code>rowsBetween(-(N-1), 0)</code> resultó O(n·N) en Spark hasta reemplazarla por una suma acumulada. Spark no es gratis: hay que saber qué compila bien a la JVM.</li>
+  </ul>
+
+  <h3>4. ¿Qué cambiaría con 10 o 100 veces más volumen?</h3>
+  <ul class="lista">
+    <li><b>Ingesta y EDA:</b> lineales; con 100× (≈ 1 700 GB de CSV) pasarían a un clúster real y a particionar por año <em>y mes</em> para que la poda siga siendo efectiva.</li>
+    <li><b>Similitud:</b> la fuerza bruta pasaría de 49 días a 13 años (10×) o 1 300 años (100×); LSH sigue siendo lineal en documentos. El cuello de botella sería la generación de firmas, que habría que reescribir difundiendo los coeficientes o con MLlib, y subir r para contener los candidatos.</li>
+    <li><b>ANN:</b> el índice de 256 dims pasaría de 0,9 a 9 y 90 GB. HNSW dejaría de caber en una máquina; habría que usar IVF con cuantización de producto (IVF-PQ, decenas de bytes por vector) y particionar el índice. La búsqueda exacta dispersa dejaría de ser opción.</li>
+    <li><b>Flujos:</b> aquí está el argumento a favor de los sketches. El conjunto exacto crece con los distintos (de 70 MB a 7 GB) mientras el Bloom crece igual pero 100 veces más chico, y el Count-Min y DGIM apenas cambian (dependen de ε, δ y log N). A 100× DGIM pasaría de curiosidad a necesidad.</li>
+    <li><b>Reglas:</b> el número de conjuntos frecuentes crece más rápido que el de canastas porque las camarillas grandes generan 2<sup>k</sup> subconjuntos. Habría que subir el soporte, minar conjuntos cerrados o maximales directamente y particionar por región o rubro.</li>
+  </ul>
+
+  <h3>5. Implicancias de aplicar estas técnicas a datos públicos peruanos</h3>
+  <ul class="lista">
+    <li><b>Transparencia y rendición de cuentas.</b> Con datos abiertos y herramientas estándar, un ciudadano, un periodista o una oficina de control puede priorizar qué revisar entre millones de procesos: camarillas que concurren siempre juntas, términos de referencia copiados que reproducen ganador, proveedores nuevos en rubros cerrados. Es lo que persigue el principio de publicidad y transparencia de la normativa de contrataciones del Estado al exigir que todo se registre en el SEACE.</li>
+    <li><b>Riesgo de uso indebido.</b> Los mismos resultados pueden usarse para estigmatizar. Un RUC que empieza con 10 es una persona natural; un falso positivo de LSH o una regla con lift alto puede tener una explicación legítima (consorcio, mercado local de pocos oferentes). Por eso publicamos etiquetas anónimas, acompañamos cada métrica con su lectura alternativa y no calificamos conductas.</li>
+    <li><b>Calidad y cobertura.</b> El quiebre de 2015 muestra que un dato público mal entendido puede producir conclusiones espectaculares y falsas. El SEACE no cubre las compras menores a 8 UIT: un análisis de «todo el gasto» con esta fuente sería engañoso. Y la Parte V mostró que «postor» incluye registros pasivos: el promedio de 14,6 postores por proceso en 2024 sobreestima la competencia real.</li>
+    <li><b>Del indicio a la acción.</b> Los resultados son insumos para priorizar auditorías, no evidencia. Una regla de asociación no reemplaza el expediente del proceso ni el derecho de defensa del proveedor.</li>
+  </ul>
+
+</section>
+
+<!-- ================================================================ ÉTICA -->
+<section id="etica">
+  <h2><span class="parte">Responsabilidad</span>Ética, privacidad y limitaciones</h2>
+  <ul class="lista">
+    <li><b>Indicios, no pruebas.</b> Un conjunto frecuente de proveedores o un ganador compartido entre procesos similares se explican también por especialización, consorcios declarados, mercados locales pequeños o requisitos técnicos que pocos cumplen. Ningún resultado de esta página imputa conducta ilícita.</li>
+    <li><b>Anonimización.</b> El dataset identifica empresas y personas naturales por RUC (los que empiezan con 10 son personas). En el reporte público los proveedores aparecen como etiquetas (P0001) con su tipo; los identificadores quedan solo en artefactos locales marcados <code>_PRIVADO</code>, que no se publican. Las entidades compradoras sí se nombran: son organismos públicos que rinden cuentas.</li>
+    <li><b>Cobertura.</b> El SEACE no incluye las contrataciones por debajo de 8 UIT ni la totalidad del gasto público: las conclusiones son sobre la contratación formal por procedimiento, no sobre el gasto total. Antes de 2015 el registro de postores es incompleto.</li>
+    <li><b>Qué es un «postor».</b> Parejas de empresas que figuran juntas en miles de procesos sin ganar ninguno indican que la tabla de postores del OCDS-OECE incluye participantes registrados que no presentaron oferta. Toda cifra de «postores por proceso» y de co-postulación debe leerse como interés registrado, no necesariamente como oferta presentada; cruzar con las ofertas evaluadas (no publicadas en esta fuente) sería el siguiente paso.</li>
+    <li><b>Reproducibilidad y licencia.</b> Datos bajo CC BY 4.0 con atribución al OECE; el equipo los transformó (conversión a Parquet, deduplicación, agregación). Todo el pipeline se reproduce con <code>scripts/ejecutar_todo.py</code>.</li>
+  </ul>
+</section>
+
+<!-- ================================================================ FUENTES -->
+<section id="fuentes">
+  <h2><span class="parte">Referencias</span>Fuentes y reproducibilidad</h2>
+  <ol class="refs">
+    <li>OECE — Organismo Especializado para las Contrataciones Públicas Eficientes (ex OSCE). <em>Contrataciones Abiertas de la Compra Pública (OCDS)</em>. <a href="https://contratacionesabiertas.oece.gob.pe/descargas">contratacionesabiertas.oece.gob.pe/descargas</a>. Licencia CC BY 4.0.</li>
+    <li>Open Contracting Partnership. <em>OCP Data Registry</em>, publicación 135 (Perú — OECE), colección del 04/10/2026. <a href="https://data.open-contracting.org/es/publication/135">data.open-contracting.org/es/publication/135</a>.</li>
+    <li>Open Contracting Data Standard 1.1. <a href="https://standard.open-contracting.org/">standard.open-contracting.org</a>.</li>
+    <li>Leskovec, Rajaraman y Ullman. <em>Mining of Massive Datasets</em>, caps. 3 (similitud, MinHash, LSH), 4 (flujos, Bloom, DGIM) y 6 (Apriori).</li>
+    <li>Johnson, Douze y Jégou (2019). Billion-scale similarity search with GPUs (FAISS). Malkov y Yashunin (2018). HNSW.</li>
+    <li>Cormode y Muthukrishnan (2005). Count-Min Sketch. Kirsch y Mitzenmacher (2006). Less hashing, same performance.</li>
+  </ol>
+  <p>Código: scripts numerados en <code>scripts/</code> (cada uno indica si corre en Spark o en local y por qué). Para regenerar esta página: <code>python scripts/ejecutar_todo.py</code> y abrir <code>web/index.html</code>, o <code>python -m http.server --directory web</code>.</p>
+</section>
+
+<footer>
+  Proyecto Integrador 1 · Minería de Datos Masivos y Flujos de Datos · 2026-2. Datos: OECE (Perú) vía OCP Data Registry, CC BY 4.0, transformados por el equipo con fines académicos.
+</footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="data/datos.js"></script>
+<script src="assets/graficos.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
