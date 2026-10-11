@@ -1,0 +1,160 @@
+/* Reporte tecnico interactivo - Proyecto Integrador 1
+   Tokens de color en :root; modo oscuro por preferencia del sistema o por
+   el boton de tema (data-theme). */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --accent: #2a78d6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --good: #006300;
+  --critical: #d03b3b;
+  --code-bg: #f0efec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
+    --accent: #3987e5;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #0ca30c; --critical: #e66767; --code-bg: #232321;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
+  --accent: #3987e5;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #0ca30c; --critical: #e66767; --code-bg: #232321;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+code, .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------ cabecera */
+.barra {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--page) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border);
+}
+.barra-in {
+  max-width: 1120px; margin: 0 auto; padding: 8px 16px;
+  display: flex; gap: 16px; align-items: center;
+}
+.barra .marca { font-weight: 650; white-space: nowrap; }
+.barra nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+.barra nav a {
+  color: var(--ink-2); text-decoration: none; padding: 4px 10px;
+  border-radius: 6px; white-space: nowrap; font-size: 14px;
+}
+.barra nav a:hover, .barra nav a.activo { background: var(--surface-2); color: var(--ink); }
+.tema {
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 14px;
+}
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 16px 80px; }
+.portada { padding: 56px 0 24px; }
+.portada .sup { color: var(--muted); font-size: 14px; letter-spacing: .02em; }
+.portada h1 { font-size: clamp(28px, 4.5vw, 44px); line-height: 1.15; margin: 8px 0 16px; max-width: 900px; }
+.portada p.lead { font-size: 18px; color: var(--ink-2); max-width: 820px; }
+
+h2 { font-size: 28px; line-height: 1.2; margin: 64px 0 8px; }
+h2 .parte { color: var(--muted); font-weight: 500; font-size: 16px; display: block; margin-bottom: 4px; }
+h3 { font-size: 20px; margin: 0 0 8px; }
+h4 { font-size: 16px; margin: 20px 0 6px; }
+.intro { color: var(--ink-2); max-width: 820px; }
+p { max-width: 860px; }
+
+/* ------------------------------------------------------------ tarjetas */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 24px 0; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.tile .lab { color: var(--ink-2); font-size: 14px; }
+.tile .val { font-size: 28px; font-weight: 600; line-height: 1.2; margin-top: 4px; }
+.tile .sub { color: var(--muted); font-size: 13px; }
+
+/* Anatomia de un hallazgo: pregunta -> pipeline -> visual -> controles -> lectura */
+.hallazgo {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px; margin: 20px 0;
+}
+.hallazgo .pregunta { font-size: 18px; font-weight: 600; margin: 0 0 10px; }
+.hallazgo .pregunta::before { content: "Pregunta · "; color: var(--muted); font-weight: 500; }
+.pipeline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 14px; font-size: 13px; }
+.pipeline span { background: var(--surface-2); border-radius: 999px; padding: 2px 10px; color: var(--ink-2); }
+.pipeline span.spark { box-shadow: inset 0 0 0 1px var(--s2); }
+.pipeline span.local { box-shadow: inset 0 0 0 1px var(--s1); }
+.pipeline i { color: var(--muted); font-style: normal; }
+.lectura { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12px; }
+.lectura::before { content: "Interpretación"; display: block; color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+.lectura p { margin: 6px 0; }
+
+.controles { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; margin: 8px 0 12px; }
+.ctrl { display: flex; flex-direction: column; gap: 2px; min-width: 180px; }
+.ctrl label { font-size: 13px; color: var(--ink-2); }
+.ctrl output { font-weight: 600; font-variant-numeric: tabular-nums; }
+.ctrl input[type=range] { width: 220px; accent-color: var(--accent); }
+.ctrl select { font: inherit; font-size: 14px; padding: 4px 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+.vivo { font-size: 12px; color: var(--good); font-weight: 600; }
+.vivo::before { content: "● "; }
+
+.lienzo { position: relative; height: 320px; }
+.lienzo.alto { height: 400px; }
+.lienzo.bajo { height: 240px; }
+.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+/* los items de grid con tablas no deben forzar el ancho de la pagina */
+.dos > *, .tiles > *, .lecturas > * { min-width: 0; }
+main, .hallazgo { min-width: 0; overflow-wrap: break-word; }
+@media (max-width: 760px) {
+  .dos { grid-template-columns: 1fr; } .lienzo { height: 280px; }
+  .hallazgo { padding: 14px; } .barra .marca { display: none; }
+  .ctrl, .ctrl input[type=range] { min-width: 0; width: 100%; }
+}
+.leyenda { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ink-2); margin: 4px 0 8px; }
+.leyenda b { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.nota { font-size: 13px; color: var(--muted); }
+
+.lecturas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 8px 0; }
+.lecturas div { background: var(--surface-2); border-radius: 8px; padding: 8px 12px; }
+.lecturas .k { font-size: 12px; color: var(--ink-2); }
+.lecturas .v { font-size: 20px; font-weight: 600; }
+
+/* ------------------------------------------------------------- tablas */
+.tabla-wrap { overflow-x: auto; margin: 8px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; font-size: 13px; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.sel td { background: var(--surface-2); }
+details { margin: 8px 0; }
+summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
+
+.discusion h3 { margin-top: 28px; }
+.callout { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; margin: 16px 0; color: var(--ink-2); }
+ol.refs li, ul.lista li { margin: 4px 0; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); margin-top: 64px; padding-top: 16px; }

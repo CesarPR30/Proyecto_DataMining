@@ -110,8 +110,9 @@ def verdad_de_terreno(spark):
     print(f"  pares con Jaccard >= {UMBRAL}: {n_sim:,} "
           f"({100*n_sim/total_pares:.4f} % del total)")
     print(f"  tiempo de la fuerza bruta: {seg:.1f} s")
-    print(f"  extrapolacion a los 746 615 procesos de 2015-2026: "
-          f"{seg * (746615/n)**2 / 3600:,.0f} horas")
+    n_corpus = r.count()      # mismo filtro que la muestra
+    print(f"  extrapolacion a los {n_corpus:,} procesos de 2015-2026: "
+          f"{seg * (n_corpus / n) ** 2 / 3600:,.0f} horas")
     return muestra, pares, similares, n, seg, n_pares
 
 
@@ -244,7 +245,7 @@ def lsh_por_bandas(spark, firmas, similares, n_muestra):
 
 # ================================================ D. LSH propio a escala
 def lsh_escala(spark):
-    """LSH por bandas sobre los 746 mil procesos de 2015-2026.
+    """LSH por bandas sobre los ~880 mil procesos de 2015-2026.
 
     Se usa la implementacion propia y no MinHashLSH de MLlib por una razon
     tecnica concreta: MLlib construye una tabla hash por funcion, es decir

@@ -27,16 +27,19 @@ PARQUET = entorno.DERIVADOS / "parquet"
 
 # Conteos publicados por el OCP Data Registry para la publicacion 135 (Peru).
 # Sirven como control externo: si cuadran, el corpus local esta completo.
+# El registro recolecta de nuevo cada mes y los conteos crecen: se fijan los
+# de la coleccion efectivamente descargada (id 4263, recolectada el
+# 04/10/2026; el avance 1 uso la del 04/09/2026, con 2 753 905 procesos).
 DECLARADO = {
-    "main": 2_753_905,                  # contracting processes / tenders
-    "tender_tenderers": 10_011_706,
-    "tender_items": 5_138_329,
-    "parties": 12_765_637,
-    "awards": 2_011_059,
-    "awards_items": 2_953_782,
-    "awards_suppliers": 2_001_831,
-    "contracts": 1_320_800,
-    "contracts_items": 1_606_559,
+    "main": 2_760_591,                  # contracting processes / tenders
+    "tender_tenderers": 10_077_133,
+    "tender_items": 5_145_770,
+    "parties": 12_837_750,
+    "awards": 2_015_970,
+    "awards_items": 2_958_987,
+    "awards_suppliers": 2_006_734,
+    "contracts": 1_325_522,
+    "contracts_items": 1_611_162,
 }
 
 
