@@ -96,6 +96,5 @@ Los artefactos con RUC y nombres de proveedores llevan el sufijo `_PRIVADO` y no
 
 ## Equipo
 
-- [Integrante 1]
-- [Integrante 2]
-- [Integrante 3]
+- César Pajuelo
+- Aleksander Paico
