@@ -10,7 +10,7 @@ Donde corre cada paso y por que:
      resuelve bien. Se calcula con Spark SQL puro (explode + groupBy) y se
      exporta como tripletas (doc, termino, peso) en Parquet.
 
-  2. LSA (TruncatedSVD a 128 dimensiones) -> LOCAL. FAISS trabaja con
+  2. LSA (TruncatedSVD a 256 dimensiones) -> LOCAL. FAISS trabaja con
      vectores densos; un TF-IDF denso de 20 000 terminos por 880 mil
      documentos pesaria 70 GB. La SVD aleatorizada sobre la matriz dispersa
      cabe en memoria (scipy) y tarda un par de minutos.

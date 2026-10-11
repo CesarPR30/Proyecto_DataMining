@@ -372,7 +372,7 @@
 
   <div class="hallazgo" id="h-tamanios">
     <p class="pregunta">¿Por qué hay 585 mil conjuntos frecuentes en 618 mil canastas?</p>
-    <div class="pipeline"><span class="spark">Spark MLlib: FP-Growth sobre 618 440 canastas, soporte ≥ 30 procesos (262 s)</span><i>→</i><span class="spark">anti-join para extraer maximales (6 s)</span></div>
+    <div class="pipeline"><span class="spark">Spark MLlib: FP-Growth sobre 618 440 canastas, soporte ≥ 30 procesos (289 s)</span><i>→</i><span class="spark">anti-join para extraer maximales (6 s)</span></div>
     <div class="leyenda" id="ley-tamanios"></div>
     <div class="lienzo bajo"><canvas id="ch-tamanios" role="img" aria-label="Conjuntos frecuentes y maximales por tamaño"></canvas></div>
     <div class="lectura"><p>Un grupo de 14 proveedores que concurre junto 30 veces genera por sí solo 2<sup>14</sup> = 16 384 subconjuntos frecuentes. Reportar los 585 205 conjuntos sería reportar mil veces el mismo grupo. Por eso el análisis se hace sobre los <b>183 630 conjuntos maximales</b> (frecuentes sin ningún superconjunto frecuente), que describen cada grupo una sola vez: el más grande reúne 14 RUC. Las reglas, a su vez, se restringen a antecedentes de uno o dos RUC para que se puedan leer.</p></div>

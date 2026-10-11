@@ -18,7 +18,7 @@ Corpus (colección del 04/10/2026): 25 particiones anuales, 2 760 591 procesos y
 | II | MinHash + LSH propios | 589 224 pares de procesos casi idénticos (98 % de la misma entidad: reconvocatorias). 2 275 pares de proveedores acoplados; un grupo de 4 nunca se presenta por separado. |
 | III | TF-IDF (Spark) + FAISS IVF/HNSW | IVF: recall 0,98 en 0,5 ms frente a 58 ms de la búsqueda exacta (120×). La pérdida real está en la reducción LSA (33 % del top 10 del TF-IDF). Procesos con texto casi idéntico comparten ganador en el 15 % de los casos frente al 0,02 % al azar. |
 | IV | Bloom, Count-Min, DGIM propios | Bloom de 0,67 MB (100× menos que el set exacto) pierde el 0,41 % de alertas de proveedor nuevo; CMS de 512 KB recupera el 100 % del top 20; DGIM cuenta la ventana con 4-11 % de error usando el 2 % de la memoria. |
-| V | Apriori (RDD) + FP-Growth | Mismos conjuntos que FP-Growth (19× más lento). 183 630 conjuntos maximales; grupos de 9-10 proveedores del sistema judicial ganan el 90-97 % frente al 32-41 % esperado. Parejas que coinciden en miles de procesos y no ganan nunca revelan registros pasivos en la tabla de postores. |
+| V | Apriori (RDD) + FP-Growth | Mismos conjuntos que FP-Growth (19× más lento). 183 630 conjuntos maximales; 157 grupos de 9-11 proveedores del Poder Judicial ganan, en mediana, el 83 % de los procesos frente al 36 % esperado (hasta 97 %). Parejas que coinciden en miles de procesos y no ganan nunca revelan registros pasivos en la tabla de postores. |
 | VI | Discusión | Dentro de `web/index.html`: valor de cada técnica, costo de aproximar, Spark vs local, escala 10×/100× e implicancias éticas. |
 
 ## Estructura
